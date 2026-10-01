@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Mrs+Saint+Delafield&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f1ee;--card:#fffdfb;--ink:#2b2b2b;--mut:#8a8580;--line:#d9d4cf;--c1:#bfe8f0;--c2:#cfe3d3;--c3:#f1c9e6;--c4:#f6d9c6;--wk:#f4a9a8;--chk:#2b2b2b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1a1a;--card:#262424;--ink:#eee;--mut:#9a9490;--line:#4a4644;--c1:#3d6b75;--c2:#4a6650;--c3:#7a4d70;--c4:#7a5a45;--wk:#a24f50;--chk:#eee}}
+:root[data-theme="dark"]{--bg:#1b1a1a;--card:#262424;--ink:#eee;--mut:#9a9490;--line:#4a4644;--c1:#3d6b75;--c2:#4a6650;--c3:#7a4d70;--c4:#7a5a45;--wk:#a24f50;--chk:#eee}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Caveat',cursive,system-ui,sans-serif;font-size:18px;padding:16px}
+.sheet{max-width:1200px;margin:0 auto;background:var(--card);border-radius:10px;padding:20px;box-shadow:0 4px 18px #0002}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+h1{font-family:'Mrs Saint Delafield',cursive;font-size:64px;font-weight:400;margin:0;padding:0 18px;background:linear-gradient(90deg,var(--wk) 0 12%,var(--c4) 12% 28%,var(--c2) 28% 44%,var(--c3) 44% 60%,transparent 60%);line-height:1.1}
+.nav{display:flex;align-items:center;gap:8px;font-size:24px}
+.nav button,.add button,.tgl{font:inherit;background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:2px 12px;cursor:pointer}
+.nav b{min-width:150px;text-align:center;font-weight:600;text-transform:capitalize}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--line);text-align:center;padding:0;height:30px}
+th.h{font-family:'Mrs Saint Delafield',cursive;font-size:34px;font-weight:400;text-align:center;background:var(--c4);min-width:210px;height:38px}
+th.d{font-size:15px;font-weight:400;min-width:28px;color:var(--ink)}
+td.n{text-align:left;padding:0 8px;white-space:nowrap}
+td.n span{outline:none}
+td.n .x{float:right;color:var(--mut);cursor:pointer;visibility:hidden;margin-left:8px}
+tr:hover .x{visibility:visible}
+td.c{cursor:pointer;font-size:20px}
+td.c:hover{background:var(--c1)}
+td.c.on::after{content:"✓";color:var(--chk)}
+.add{display:flex;gap:6px;margin:8px 0 0}
+.add input{font:inherit;flex:1;min-width:0;background:transparent;color:var(--ink);border:1px dashed var(--line);border-radius:6px;padding:2px 8px}
+.row{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:800px){.row{grid-template-columns:1fr}h1{font-size:48px}}
+.sec h2{margin:0}
+textarea{width:100%;height:100%;min-height:150px;font:inherit;background:transparent;color:var(--ink);border:1px solid var(--line);padding:10px;resize:vertical}
+.hint{color:var(--mut);font-size:15px;margin-top:10px;text-align:center}
+</style>
+</head>
+<body>
+<div class="sheet">
+<header><h1>Habit Tracker</h1>
+<div class="nav"><button id="prev" aria-label="Mes anterior">‹</button><b id="ym"></b><button id="next" aria-label="Mes siguiente">›</button><button id="tgl" class="tgl" title="Tema">◐</button></div></header>
+<div id="daily"></div>
+<div class="row"><div id="weekly"></div><div id="monthly"></div><div class="sec"><table><tr><th class="h" style="background:var(--c3)">Notas</th></tr></table><textarea id="notes" placeholder="Notas del mes…"></textarea></div></div>
+<div class="hint">Toca una casilla para marcar ✓ · Toca un nombre para editarlo · Pasa el ratón para borrar</div>
+</div>
+<script>
+const KEY='habit-tracker-v1';
+let S={habits:{daily:['Caminar al aire libre','Meditar 30 minutos','Cocinar comida fresca','Entrenar','Beber 8 vasos de agua','3 cosas por las que estoy agradecido','Leer','Dormir 8 horas'],weekly:['Plan de comidas semanal','Plan de fitness','Llamar a mis padres','Una tarde de autocuidado'],monthly:['Presupuesto y gastos del mes','Limpieza a fondo de la casa','Revisar mis objetivos']},checks:{},notes:{}};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let cur=new Date();cur.setDate(1);
+const ym=()=>cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0');
+const pal=['var(--c1)','var(--c2)','var(--c3)','var(--c4)'];
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function table(type,title,cols,hdr){
+  const ck=(S.checks[ym()]=S.checks[ym()]||{});
+  let h=`<div class="scroll"><table><tr><th class="h" style="background:${type=='daily'?'var(--c4)':type=='weekly'?'var(--c3)':'var(--wk)'}">${title}</th>${hdr}</tr>`;
+  S.habits[type].forEach((n,i)=>{
+    h+=`<tr><td class="n"><span contenteditable data-t="${type}" data-i="${i}">${esc(n)}</span><span class="x" data-del="${type}:${i}">✕</span></td>`;
+    for(let c=1;c<=cols;c++){const k=type[0]+i+'_'+c;h+=`<td class="c ${ck[k]?'on':''}" data-k="${k}"></td>`}
+    h+='</tr>'});
+  return h+`</table></div><form class="add" onsubmit="return false"><input placeholder="+ Añadir ${type=='daily'?'hábito diario':type=='weekly'?'hábito semanal':'hábito mensual'}" data-add="${type}"><button type="button" data-addbtn="${type}">Añadir</button></form>`}
+function render(){
+  const y=cur.getFullYear(),m=cur.getMonth(),dim=new Date(y,m+1,0).getDate();
+  document.getElementById('ym').textContent=cur.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  let hd='';
+  for(let d=1;d<=dim;d++){const dow=new Date(y,m,d).getDay();hd+=`<th class="d" style="background:${dow==0||dow==6?'var(--wk)':pal[(d-1)%4]}" title="${new Date(y,m,d).toLocaleDateString('es-ES',{weekday:'long'})}">${d}</th>`}
+  document.getElementById('daily').innerHTML=table('daily','Hábitos diarios',dim,hd);
+  const w=Math.ceil(dim/7);let wh='';for(let i=1;i<=w;i++)wh+=`<th class="d" style="background:${pal[(i-1)%4]}">${i}</th>`;
+  document.getElementById('weekly').innerHTML=table('weekly','Hábitos semanales',w,wh);
+  document.getElementById('monthly').innerHTML=table('monthly','Hábitos mensuales',1,'<th class="d" style="background:var(--c1)">✓</th>');
+  document.getElementById('notes').value=S.notes[ym()]||'';
+}
+document.addEventListener('click',e=>{
+  const t=e.target,ck=(S.checks[ym()]=S.checks[ym()]||{});
+  if(t.dataset.k){ck[t.dataset.k]=!ck[t.dataset.k];t.classList.toggle('on');save()}
+  else if(t.dataset.del){const[ty,i]=t.dataset.del.split(':');S.habits[ty].splice(+i,1);
+    const p=ty[0]+i+'_';for(const m in S.checks)for(const k of Object.keys(S.checks[m]))if(k[0]==ty[0]){const[a,b]=k.split('_');const idx=+a.slice(1);if(idx==+i)delete S.checks[m][k];else if(idx>+i){S.checks[m][ty[0]+(idx-1)+'_'+b]=S.checks[m][k];delete S.checks[m][k]}}
+    save();render()}
+  else if(t.dataset.addbtn)addHabit(t.dataset.addbtn)});
+function addHabit(ty){const inp=document.querySelector(`[data-add="${ty}"]`),v=inp.value.trim();if(!v)return;S.habits[ty].push(v);save();render();document.querySelector(`[data-add="${ty}"]`).focus()}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(e.target.dataset.add){e.preventDefault();addHabit(e.target.dataset.add)}else if(e.target.dataset.t){e.preventDefault();e.target.blur()}}});
+document.addEventListener('focusout',e=>{const t=e.target;if(t.dataset&&t.dataset.t){const v=t.textContent.trim();if(v){S.habits[t.dataset.t][+t.dataset.i]=v;save()}else render()}});
+document.getElementById('notes').addEventListener('input',e=>{S.notes[ym()]=e.target.value;save()});
+document.getElementById('prev').onclick=()=>{cur.setMonth(cur.getMonth()-1);render()};
+document.getElementById('next').onclick=()=>{cur.setMonth(cur.getMonth()+1);render()};
+document.getElementById('tgl').onclick=()=>{const r=document.documentElement,d=getComputedStyle(r).getPropertyValue('--bg').trim()=='#1b1a1a';r.dataset.theme=d?'light':'dark'};
+render();
+</script>
+</body>
+</html>
